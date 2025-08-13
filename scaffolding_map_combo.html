@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Physics LO Map — Combo (Proximity & Rings)</title>
+<style>
+  html, body { margin:0; padding:0; background:#0b1020; color:#f2f5ff; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+  #wrap { display:flex; }
+  #viz { flex:1; }
+  #panel { width: 360px; border-left:1px solid #1e2a4a; padding:16px; background:#0f1730; position:relative; }
+  h1 { font-size:18px; margin:0 0 8px 0; color:#fff; }
+  .small { font-size:12px; color:#a9b4d0; }
+  #globalLegend { position:fixed; top:12px; left:12px; background:#0b1020; border:1px solid #1e2a4a; border-radius:12px; padding:8px 10px; z-index:10; }
+  .legend-row { display:flex; align-items:center; gap:8px; margin:4px 0; }
+  .swatch { width:12px; height:12px; border-radius:50%; }
+  .toolbar { position:fixed; top:12px; right:380px; display:flex; gap:8px; align-items:center; background:#0b1020; border:1px solid #1e2a4a; border-radius:12px; padding:8px 10px; z-index:11; }
+  .node { cursor:grab; }
+  .label { font-size:10px; pointer-events:none; fill:#e1e7ff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+  .link { stroke:#6172a6; stroke-opacity:0.25; }
+  .link.highlight { stroke-opacity:1; }
+  .link.forward { stroke:#00c853; }
+  .link.backward { stroke:#ff5252; }
+  .link.hidden { display:none; }
+  .node.dim { opacity:0.25; }
+  .link.dim { opacity:0.06; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; background:#1a2240; border:1px solid #2a3a70; color:#cfe0ff; }
+  button, select, input[type="range"] { background:#1a2240; color:#cfe0ff; border:1px solid #2a3a70; border-radius:10px; padding:6px 8px; cursor:pointer; font-size:12px; }
+  button:hover { filter:brightness(1.15); }
+  #details { margin-top:12px; padding:10px; border-radius:12px; background:#0b1020; border:1px solid #1e2a4a; min-height:220px; }
+  #details h2 { font-size:16px; margin:0 0 6px; }
+  #details p { font-size:13px; line-height:1.35; color:#c7d2f0; }
+  .controls { display:none; }
+  .list-head { margin-top:6px; font-weight:600; color:#e6ecff; font-size:12px; }
+  .list { font-size:12px; color:#cbd6ff; }
+  .sep { width:1px; height:22px; background:#1e2a4a; display:inline-block; margin:0 6px; }
+  .slider-wrap { display:flex; align-items:center; gap:6px; }
+  .slider-wrap label { font-size:12px; color:#cfe0ff; }
+  /* Footer */
+  #footer { position:fixed; right:12px; bottom:10px; font-size:12px; color:#a9b4d0; background:#0b1020; border:1px solid #1e2a4a; border-radius:10px; padding:6px 8px; z-index:9; }
+</style>
+</head>
+<body>
+<div id="globalLegend"></div>
+
+<div class="toolbar">
+  <label class="small">Layout</label>
+  <select id="layoutMode">
+    <option value="proximity">Proximity</option>
+    <option value="rings">Rings</option>
+  </select>
+  <span class="sep"></span>
+  <button id="startBtn" title="Start (Live)">Start</button>
+  <button id="pauseBtn" title="Pause (Static)">Pause</button>
+  <button id="snapBtn" title="Snap nodes to grid">Snap to Grid</button>
+  <button id="resetBtn" title="Reset Zoom/Pan">Reset</button>
+  <button id="saveBtn" title="Save Node Positions">Save</button>
+  <span class="sep"></span>
+  <div class="slider-wrap">
+    <label for="spacing">Spacing</label>
+    <input id="spacing" type="range" min="0.8" max="2.2" step="0.05" value="1.35">
+  </div>
+  <span class="sep"></span>
+  <label class="small">Links</label>
+  <select id="linkMode">
+    <option value="all">All</option>
+    <option value="revision">Revision only</option>
+  </select>
+</div>
+
+<div id="wrap">
+  <svg id="viz" width="1400" height="1000"></svg>
+  <aside id="panel">
+    <h1>Learning Objective Details</h1>
+    <div class="small">Hover a node to see details. Switch layouts in the toolbar.</div>
+    <div id="details"><div class="small">No node selected.</div></div>
+  </aside>
+</div>
+
+<div id="footer">Jackson Falk — jefalk@ucsc.edu</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script id="graph-data" type="application/json">{"nodes": [{"id": "10A", "module_num": 10, "module_title": "Angular Momentum", "label": "A", "description": "Relate the angular velocity vector to the direction of rotation using the right-hand rule.", "color": "#17becf", "r": 13.2, "rx": 417.8124613700875, "ry": 231.89938666619753}, {"id": "10B", "module_num": 10, "module_title": "Angular Momentum", "label": "B", "description": "Identify the direction of an angular momentum vector for a rotating object.", "color": "#17becf", "r": 13.59, "rx": 380.4993791400791, "ry": 283.2564385221748}, {"id": "10C", "module_num": 10, "module_title": "Angular Momentum", "label": "C", "description": "Calculate an object\u2019s angular momentum from its angular speed and rotational inertia.", "color": "#17becf", "r": 13.2, "rx": 320.1255437649935, "ry": 263.6397904154527}, {"id": "10D", "module_num": 10, "module_title": "Angular Momentum", "label": "D", "description": "Solve for a point source's angular momentum from its velocity vector and relative location from a pivot point.", "color": "#17becf", "r": 14.98, "rx": 320.12554353711056, "ry": 200.15898323059636}, {"id": "10E", "module_num": 10, "module_title": "Angular Momentum", "label": "E", "description": "Use conservation of angular momentum to solve a problem.", "color": "#17becf", "r": 15.6, "rx": 380.49937877135676, "ry": 180.5423346904151}, {"id": "1A", "module_num": 1, "module_title": "Mathematical foundations", "label": "A", "description": "Convert a quantity from one unit of measure to another.", "color": "#1f77b4", "r": 20.99, "rx": 700.0000002153876, "ry": 380.0}, {"id": "1B", "module_num": 1, "module_title": "Mathematical foundations", "label": "B", "description": "Employ scientific notation in representing very large and very small numbers.", "color": "#1f77b4", "r": 18.92, "rx": 784.8528138185367, "ry": 415.1471863337653}, {"id": "1C", "module_num": 1, "module_title": "Mathematical foundations", "label": "C", "description": "Specify whether given physical quantities are scalars or vectors.", "color": "#1f77b4", "r": 21.74, "rx": 820.0, "ry": 500.0}, {"id": "1D", "module_num": 1, "module_title": "Mathematical foundations", "label": "D", "description": "Relate the components of a vector to the magnitude and direction of the vector.", "color": "#1f77b4", "r": 21.74, "rx": 784.8528138185367, "ry": 584.8528136662347}, {"id": "1E", "module_num": 1, "module_title": "Mathematical foundations", "label": "E", "description": "Deconstruct a vector into components.", "color": "#1f77b4", "r": 21.74, "rx": 700.0000002153876, "ry": 620.0}, {"id": "1F", "module_num": 1, "module_title": "Mathematical foundations", "label": "F", "description": "Determine the sum or difference of two (or more) vectors by adding (or subtracting) like components.", "color": "#1f77b4", "r": 21.74, "rx": 615.1471864860673, "ry": 584.8528139708387}, {"id": "1G", "module_num": 1, "module_title": "Mathematical foundations", "label": "G", "description": "Recognize the slope of a curve on a plot as change in vertically represented parameter over change in horizontally represented parameter.", "color": "#1f77b4", "r": 13.96, "rx": 580.0, "ry": 500.0000004307751}, {"id": "1H", "module_num": 1, "module_title": "Mathematical foundations", "label": "H", "description": "Limit mathematical results to the proper number of significant figures.", "color": "#1f77b4", "r": 19.15, "rx": 615.1471858768593, "ry": 415.1471866383693}, {"id": "2A", "module_num": 2, "module_title": "Kinematics", "label": "A", "description": "Calculate the change in a quantity using the final value minus the initial value.", "color": "#ff7f0e", "r": 19.99, "rx": 700.0000003589793, "ry": 300.0}, {"id": "2B", "module_num": 2, "module_title": "Kinematics", "label": "B", "description": "Distinguish between an object's position and displacement.", "color": "#ff7f0e", "r": 18.24, "rx": 808.1281636832966, "ry": 331.7492935572685}, {"id": "2C", "module_num": 2, "module_title": "Kinematics", "label": "C", "description": "Relate an object's average velocity to\u00a0its displacement and the associated time interval.", "color": "#ff7f0e", "r": 17.76, "rx": 881.9263991115743, "ry": 416.9169974886788}, {"id": "2D", "module_num": 2, "module_title": "Kinematics", "label": "D", "description": "Recognize the instantaneous velocity as the derivative of the position with respect to time.", "color": "#ff7f0e", "r": 17.0, "rx": 897.9642883808309, "ry": 528.4629676223548}, {"id": "2E", "module_num": 2, "module_title": "Kinematics", "label": "E", "description": "Relate an object's average acceleration to\u00a0its change in velocity and the associated time interval.", "color": "#ff7f0e", "r": 16.73, "rx": 851.1499149777069, "ry": 630.9721466657395}, {"id": "2F", "module_num": 2, "module_title": "Kinematics", "label": "F", "description": "Recognize the instantaneous acceleration as the derivative of the velocity with respect to time.", "color": "#ff7f0e", "r": 16.46, "rx": 756.3465116500989, "ry": 691.8985946401517}, {"id": "2G", "module_num": 2, "module_title": "Kinematics", "label": "G", "description": "Relate position versus time, velocity versus time, and acceleration versus time graphs to one another.", "color": "#ff7f0e", "r": 16.73, "rx": 643.6534890387773, "ry": 691.898594842424}, {"id": "2H", "module_num": 2, "module_title": "Kinematics", "label": "H", "description": "Identify known and unknown quantities in kinematic problems.", "color": "#ff7f0e", "r": 18.0, "rx": 548.8500854924561, "ry": 630.9721472083364}, {"id": "2I", "module_num": 2, "module_title": "Kinematics", "label": "I", "description": "Solve one (or more) of the kinematic equations for an unknown quantity for motion involving constant velocity.", "color": "#ff7f0e", "r": 18.47, "rx": 502.03571172134525, "ry": 528.4629683330056}, {"id": "2J", "module_num": 2, "module_title": "Kinematics", "label": "J", "description": "Solve one (or more) of the kinematic equations for an unknown quantity for motion involving constant acceleration.", "color": "#ff7f0e", "r": 20.2, "rx": 518.073600590175, "ry": 416.91699814175684}, {"id": "2K", "module_num": 2, "module_title": "Kinematics", "label": "K", "description": "Reduce a two-dimensional problem into two coupled one-dimensional problems by resolving the components of velocity and acceleration into components along two perpendicular axes.", "color": "#ff7f0e", "r": 21.55, "rx": 591.8718357127182, "ry": 331.7492939454262}, {"id": "3A", "module_num": 3, "module_title": "Newton's Laws", "label": "A", "description": "Identify and describe each of Newton's Laws.", "color": "#2ca02c", "r": 14.31, "rx": 700.000000502571, "ry": 220.0}, {"id": "3B", "module_num": 3, "module_title": "Newton's Laws", "label": "B", "description": "Identify all the forces exerted on an object.", "color": "#2ca02c", "r": 20.6, "rx": 918.9128152253403, "ry": 325.4228556479514}, {"id": "3C", "module_num": 3, "module_title": "Newton's Laws", "label": "C", "description": "Represent all the forces exerted on an object with a free-body diagram.", "color": "#2ca02c", "r": 18.0, "rx": 972.9798154268867, "ry": 562.3058614377723}, {"id": "3D", "module_num": 3, "module_title": "Newton's Laws", "label": "D", "description": "Determine the components of a force from the magnitude and direction of the force.", "color": "#2ca02c", "r": 18.0, "rx": 821.4874472763454, "ry": 752.2712828569221}, {"id": "3E", "module_num": 3, "module_title": "Newton's Laws", "label": "E", "description": "Identify Newton's third law (action/reaction) pairs of forces.", "color": "#2ca02c", "r": 14.98, "rx": 578.5125536292562, "ry": 752.2712832930368}, {"id": "3F", "module_num": 3, "module_title": "Newton's Laws", "label": "F", "description": "Describe situations in which the velocity of an object is a nonzero constant when no net force acts on the object.", "color": "#2ca02c", "r": 18.7, "rx": 427.02018479677844, "ry": 562.3058624177132}, {"id": "3G", "module_num": 3, "module_title": "Newton's Laws", "label": "G", "description": "Describe what an inertial reference frame is and how it is related to Newton's Laws.", "color": "#2ca02c", "r": 14.31, "rx": 481.08718414796397, "ry": 325.4228564338031}, {"id": "4A", "module_num": 4, "module_title": "Applications of Newton's Laws", "label": "A", "description": "Relate a frictional force to the (perpendicular) normal force.", "color": "#d62728", "r": 17.26, "rx": 754.0000007718055, "ry": 70.0}, {"id": "4B", "module_num": 4, "module_title": "Applications of Newton's Laws", "label": "B", "description": "Determine direction of force of friction from relative motion of two surfaces.", "color": "#d62728", "r": 17.51, "rx": 743.686918490841, "ry": 101.74040359242815}, {"id": "4C", "module_num": 4, "module_title": "Applications of Newton's Laws", "label": "C", "description": "Relate Newton's second law to a free-body diagram in one and two dimensional scenarios.", "color": "#d62728", "r": 19.58, "rx": 716.6869185417971, "ry": 121.35705185597726}, {"id": "4D", "module_num": 4, "module_title": "Applications of Newton's Laws", "label": "D", "description": "Solve for the net (total) force exerted on each object, or an unknown force, by summing individual forces.", "color": "#d62728", "r": 21.18, "rx": 683.313083186175, "ry": 121.35705191587985}, {"id": "4E", "module_num": 4, "module_title": "Applications of Newton's Laws", "label": "E", "description": "Calculate the acceleration of an object from the net (total) force exerted on each object.", "color": "#d62728", "r": 21.74, "rx": 656.3130831667115, "ry": 101.74040374925514}, {"id": "4F", "module_num": 4, "module_title": "Applications of Newton's Laws", "label": "F", "description": "Apply Hooke's law to relate the force exerted by a stretched/compressed spring to the displacement from equilibrium and the spring constant.", "color": "#d62728", "r": 17.0, "rx": 646.0000007718055, "ry": 70.00000019384882}, {"id": "4G", "module_num": 4, "module_title": "Applications of Newton's Laws", "label": "G", "description": "Utilize the relationship between the maximum velocity or acceleration of a mass-spring oscillator and the angular frequency or amplitude of oscillation to solve for an unknown quantity.", "color": "#d62728", "r": 9.39, "rx": 656.3130829388285, "ry": 38.25959656439884}, {"id": "4H", "module_num": 4, "module_title": "Applications of Newton's Laws", "label": "H", "description": "Recognize the properties of a simple harmonic oscillator with a sinusoidal function, including information on the position, velocity, or acceleration of the oscillator.", "color": "#d62728", "r": 8.4, "rx": 683.3130828174527, "ry": 18.642948203925314}, {"id": "4I", "module_num": 4, "module_title": "Applications of Newton's Laws", "label": "I", "description": "Relate the frequency, period, and/or amplitude of an object undergoing simple harmonic oscillations to the properties of the spring or pendulum to which it is connected.", "color": "#d62728", "r": 9.39, "rx": 716.6869181730748, "ry": 18.642948024217574}, {"id": "4J", "module_num": 4, "module_title": "Applications of Newton's Laws", "label": "J", "description": "Recognize that the period of a pendulum is independent of the bob's mass, and that the period of a mass/spring system is independent of the amplitude of oscillation.", "color": "#d62728", "r": 8.4, "rx": 743.686918262958, "ry": 38.25959609391785}, {"id": "5A", "module_num": 5, "module_title": "Energy", "label": "A", "description": "Calculate the kinetic energy of a particle given its mass and its velocity", "color": "#9467bd", "r": 16.18, "rx": 1090.1875376674868, "ry": 231.89938545935394}, {"id": "5B", "module_num": 5, "module_title": "Energy", "label": "B", "description": "Calculate the gravitational potential energy for an object near Earth's surface given its mass and location.", "color": "#9467bd", "r": 15.6, "rx": 1063.1875377234462, "ry": 278.6647572314055}, {"id": "5C", "module_num": 5, "module_title": "Energy", "label": "C", "description": "Calculate the spring potential energy for a mass on a compressed or stretched spring with a given spring constant.", "color": "#9467bd", "r": 14.65, "rx": 1009.1875377794055, "ry": 278.66475732832987}, {"id": "5D", "module_num": 5, "module_title": "Energy", "label": "D", "description": "Recognize that conservation of mechanical energy is theoretically absolute.", "color": "#9467bd", "r": 14.98, "rx": 982.1875376674868, "ry": 231.89938565320276}, {"id": "5E", "module_num": 5, "module_title": "Energy", "label": "E", "description": "Use the conservation of mechanical energy to calculate various properties of simple systems.", "color": "#9467bd", "r": 16.73, "rx": 1009.1875374436495, "ry": 185.1340137842268}, {"id": "5F", "module_num": 5, "module_title": "Energy", "label": "F", "description": "Recognize forces as either conservative or non-conservative forces.", "color": "#9467bd", "r": 15.9, "rx": 1063.18753738769, "ry": 185.13401349345355}, {"id": "6A", "module_num": 6, "module_title": "Work and Power", "label": "A", "description": "Calculate the scalar (dot) product of two vectors using its definition and the component method.", "color": "#8c564b", "r": 14.98, "rx": 1173.2190022627187, "ry": 595.6840014937217}, {"id": "6B", "module_num": 6, "module_title": "Work and Power", "label": "B", "description": "Evaluate the work done by various forces over for an object with a given displacement.", "color": "#8c564b", "r": 18.24, "rx": 1160.5854022188332, "ry": 630.3945323837955}, {"id": "6C", "module_num": 6, "module_title": "Work and Power", "label": "C", "description": "Recognize conditions under which a force will do no work on an object.", "color": "#8c564b", "r": 17.26, "rx": 1128.596003941579, "ry": 648.8636201414203}, {"id": "6D", "module_num": 6, "module_title": "Work and Power", "label": "D", "description": "Relate the sign of work (positive or negative) to the direction of the force relative to the direction of motion.", "color": "#8c564b", "r": 17.26, "rx": 1092.2190023746373, "ry": 642.4493733626977}, {"id": "6E", "module_num": 6, "module_title": "Work and Power", "label": "E", "description": "Apply the work-energy theorem to solve for information on the forces acting on an object.", "color": "#8c564b", "r": 18.92, "rx": 1068.4756007992132, "ry": 614.1530893952263}, {"id": "6F", "module_num": 6, "module_title": "Work and Power", "label": "F", "description": "Apply the work-energy theorem to solve for information on the work being done on an object.", "color": "#8c564b", "r": 17.76, "rx": 1068.4756006666128, "ry": 577.2149139565337}, {"id": "6G", "module_num": 6, "module_title": "Work and Power", "label": "G", "description": "Apply the work-energy theorem to solve for information on the change in kinetic energy of the object.", "color": "#8c564b", "r": 19.15, "rx": 1092.2190020388814, "ry": 548.9186298185946}, {"id": "6H", "module_num": 6, "module_title": "Work and Power", "label": "H", "description": "Apply energy conservation with the presence of the non-conservative force of friction.", "color": "#8c564b", "r": 19.79, "rx": 1128.5960035597716, "ry": 542.5043827787001}, {"id": "6I", "module_num": 6, "module_title": "Work and Power", "label": "I", "description": "Relate the average power supplied or consumed in a process to the duration of the process and the energy supplied or consumed.", "color": "#8c564b", "r": 16.46, "rx": 1160.585401969626, "ry": 560.9734703066542}, {"id": "7A", "module_num": 7, "module_title": "Momentum", "label": "A", "description": "Relate the momentum of an object to the velocity vector and mass.", "color": "#e377c2", "r": 15.6, "rx": 940.5700083172449, "ry": 887.4166129588446}, {"id": "7B", "module_num": 7, "module_title": "Momentum", "label": "B", "description": "Determine the direction of an object's momentum.", "color": "#e377c2", "r": 13.96, "rx": 920.2384576609185, "ry": 929.6355129775859}, {"id": "7C", "module_num": 7, "module_title": "Momentum", "label": "C", "description": "Identify objects as being either internal or external to a system.", "color": "#e377c2", "r": 12.79, "rx": 874.5538779915973, "ry": 940.0627202413118}, {"id": "7D", "module_num": 7, "module_title": "Momentum", "label": "D", "description": "Determine the impulse delivered to an object from the average applied force and duration of the force.", "color": "#e377c2", "r": 16.73, "rx": 837.9176895226067, "ry": 910.8463350208942}, {"id": "7E", "module_num": 7, "module_title": "Momentum", "label": "E", "description": "Use conservation of momentum in one-dimension to solve for an unknown parameter from either before or after a collision.", "color": "#e377c2", "r": 14.31, "rx": 837.917689354391, "ry": 863.9868912460984}, {"id": "7F", "module_num": 7, "module_title": "Momentum", "label": "F", "description": "Identify whether a collision is elastic or inelastic.", "color": "#e377c2", "r": 13.2, "rx": 874.5538776136201, "ry": 834.7705057626481}, {"id": "7G", "module_num": 7, "module_title": "Momentum", "label": "G", "description": "Specify condition under which both momentum and kinetic energy of a system are conserved.", "color": "#e377c2", "r": 13.59, "rx": 920.2384573578042, "ry": 845.1977126983776}, {"id": "8A", "module_num": 8, "module_title": "Circular and Rotational Motion", "label": "A", "description": "Use radians as the unit of angle in circular motion problem solving.", "color": "#7f7f7f", "r": 14.31, "rx": 567.4299930735006, "ry": 887.4166136285924}, {"id": "8B", "module_num": 8, "module_title": "Circular and Rotational Motion", "label": "B", "description": "Relate the angular velocity to the change in angular position over the change in time.", "color": "#7f7f7f", "r": 17.0, "rx": 562.7614477967137, "ry": 909.3803923310736}, {"id": "8C", "module_num": 8, "module_title": "Circular and Rotational Motion", "label": "C", "description": "Relate the angular acceleration to the change in angular velocity over change in time.", "color": "#7f7f7f", "r": 17.0, "rx": 549.5630458552943, "ry": 927.5464341697823}, {"id": "8D", "module_num": 8, "module_title": "Circular and Rotational Motion", "label": "D", "description": "Distinguish uniform from nonuniform circular motion.", "color": "#7f7f7f", "r": 16.73, "rx": 530.1169108434922, "ry": 938.7736654845696}, {"id": "8E", "module_num": 8, "module_title": "Circular and Rotational Motion", "label": "E", "description": "For an object in uniform circular motion, relate its tangential speed and radius to its angular speed and its period of revolution.", "color": "#7f7f7f", "r": 14.98, "rx": 507.78545615986695, "ry": 941.1207959892859}, {"id": "8F", "module_num": 8, "module_title": "Circular and Rotational Motion", "label": "F", "description": "For nonuniform circular motion, relate an object's tangential acceleration to its angular acceleration.", "color": "#7f7f7f", "r": 15.3, "rx": 486.4299931854192, "ry": 934.1819854975683}, {"id": "8G", "module_num": 8, "module_title": "Circular and Rotational Motion", "label": "G", "description": "Construct the equations of rotational kinematics in exact analogy to the equations of one-dimensional accelerated motion.", "color": "#7f7f7f", "r": 14.31, "rx": 469.7430754684066, "ry": 919.1570173778475}, {"id": "8H", "module_num": 8, "module_title": "Circular and Rotational Motion", "label": "H", "description": "Use the rotational kinematic equations to solve for an unknown quantity.", "color": "#7f7f7f", "r": 15.3, "rx": 460.6100226714916, "ry": 898.6438451097233}, {"id": "8I", "module_num": 8, "module_title": "Circular and Rotational Motion", "label": "I", "description": "Recognize\u00a0that a change in the direction of a velocity vector is associated with acceleration.", "color": "#7f7f7f", "r": 14.98, "rx": 460.61002259088474, "ry": 876.1893825266869}, {"id": "8J", "module_num": 8, "module_title": "Circular and Rotational Motion", "label": "J", "description": "Solve for the centripetal acceleration of an object moving in a circular path with known radius and speed.", "color": "#7f7f7f", "r": 15.9, "rx": 469.74307524052364, "ry": 855.6762101929912}, {"id": "8K", "module_num": 8, "module_title": "Circular and Rotational Motion", "label": "K", "description": "Identify radial forces acting on an object in circular motion as the centripetal force.", "color": "#7f7f7f", "r": 14.98, "rx": 486.4299928496632, "ry": 840.6512419534652}, {"id": "8L", "module_num": 8, "module_title": "Circular and Rotational Motion", "label": "L", "description": "Calculate the center of mass of a collection of individual, point-like objects where each object may have a different mass and position.", "color": "#7f7f7f", "r": 13.96, "rx": 507.78545577429315, "ry": 833.7124313084242}, {"id": "8M", "module_num": 8, "module_title": "Circular and Rotational Motion", "label": "M", "description": "Calculate the moment of inertia of multiple point sources oriented around an axis.", "color": "#7f7f7f", "r": 14.31, "rx": 530.1169104747698, "ry": 836.05956165281}, {"id": "8N", "module_num": 8, "module_title": "Circular and Rotational Motion", "label": "N", "description": "Relate rotational kinetic energy to the object\u2019s moment of inertia and its angular speed.", "color": "#7f7f7f", "r": 13.2, "rx": 549.5630455671788, "ry": 847.2867928279821}, {"id": "8O", "module_num": 8, "module_title": "Circular and Rotational Motion", "label": "O", "description": "With access to a reference, calculate the moment of inertia of a simple geometric object from its mass and dimensions.", "color": "#7f7f7f", "r": 13.59, "rx": 562.7614476390229, "ry": 865.4528345719317}, {"id": "9A", "module_num": 9, "module_title": "Torque and Stability", "label": "A", "description": "Calculate the torque from the angular acceleration and moment of inertia of an object.", "color": "#bcbd22", "r": 17.51, "rx": 334.7809980807669, "ry": 595.6840029986311}, {"id": "9B", "module_num": 9, "module_title": "Torque and Stability", "label": "B", "description": "Calculate the magnitude of the vector (cross) product using the definition of the cross product.", "color": "#bcbd22", "r": 14.98, "rx": 322.1473980368814, "ry": 630.3945338887049}, {"id": "9C", "module_num": 9, "module_title": "Torque and Stability", "label": "C", "description": "Calculate the torque from a force vector applied a distance away from a pivot point.", "color": "#bcbd22", "r": 15.9, "rx": 290.1579997596273, "ry": 648.8636216463296}, {"id": "9D", "module_num": 9, "module_title": "Torque and Stability", "label": "D", "description": "Determine the sign (positive or negative) of a torque according to its resultant rotation direction.", "color": "#bcbd22", "r": 14.98, "rx": 253.78099819268556, "ry": 642.449374867607}, {"id": "9E", "module_num": 9, "module_title": "Torque and Stability", "label": "E", "description": "Determine the direction of the vector (cross) product using the right-hand rule.", "color": "#bcbd22", "r": 14.31, "rx": 230.03759661726136, "ry": 614.1530909001357}, {"id": "9F", "module_num": 9, "module_title": "Torque and Stability", "label": "F", "description": "Recognize that forces that point toward or away from a pivot point exert no torque on an object.", "color": "#bcbd22", "r": 15.3, "rx": 230.03759648466095, "ry": 577.2149154614431}, {"id": "9G", "module_num": 9, "module_title": "Torque and Stability", "label": "G", "description": "Calculate the individual torques about a common axis and sum them to find the net torque on an object and the angular acceleration of that object.", "color": "#bcbd22", "r": 17.76, "rx": 253.78099785692956, "ry": 548.9186313235039}, {"id": "9H", "module_num": 9, "module_title": "Torque and Stability", "label": "H", "description": "Define the conditions of object stability in terms of net force and net torque.", "color": "#bcbd22", "r": 14.98, "rx": 290.15799937781964, "ry": 542.5043842836095}, {"id": "9I", "module_num": 9, "module_title": "Torque and Stability", "label": "I", "description": "Calculate the individual torques about a common axis of a stationary object, and use them to solve for an unknown force value.", "color": "#bcbd22", "r": 17.51, "rx": 322.14739778767415, "ry": 560.9734718115636}], "links": [{"source": "10A", "target": "10B"}, {"source": "10A", "target": "10D"}, {"source": "10A", "target": "10E"}, {"source": "10A", "target": "1C"}, {"source": "10A", "target": "1D"}, {"source": "10A", "target": "1E"}, {"source": "10A", "target": "1F"}, {"source": "10A", "target": "8B"}, {"source": "10B", "target": "10D"}, {"source": "10B", "target": "10E"}, {"source": "10B", "target": "1C"}, {"source": "10B", "target": "1D"}, {"source": "10B", "target": "1E"}, {"source": "10B", "target": "1F"}, {"source": "10B", "target": "7B"}, {"source": "10B", "target": "8B"}, {"source": "10C", "target": "10D"}, {"source": "10C", "target": "10E"}, {"source": "10C", "target": "1A"}, {"source": "10C", "target": "1B"}, {"source": "10C", "target": "1H"}, {"source": "10C", "target": "8B"}, {"source": "10C", "target": "8M"}, {"source": "10C", "target": "8O"}, {"source": "10D", "target": "10E"}, {"source": "10D", "target": "1A"}, {"source": "10D", "target": "1B"}, {"source": "10D", "target": "1H"}, {"source": "10D", "target": "2C"}, {"source": "10D", "target": "2D"}, {"source": "10D", "target": "7A"}, {"source": "10D", "target": "7B"}, {"source": "10D", "target": "8M"}, {"source": "10D", "target": "8O"}, {"source": "10E", "target": "2A"}, {"source": "10E", "target": "2C"}, {"source": "10E", "target": "7A"}, {"source": "10E", "target": "7C"}, {"source": "10E", "target": "7D"}, {"source": "10E", "target": "7E"}, {"source": "10E", "target": "7F"}, {"source": "10E", "target": "7G"}, {"source": "10E", "target": "8E"}, {"source": "10E", "target": "8M"}, {"source": "10E", "target": "8O"}, {"source": "1A", "target": "1B"}, {"source": "1A", "target": "1H"}, {"source": "1A", "target": "2A"}, {"source": "1A", "target": "2D"}, {"source": "1A", "target": "2E"}, {"source": "1A", "target": "2G"}, {"source": "1A", "target": "2H"}, {"source": "1A", "target": "4A"}, {"source": "1A", "target": "4D"}, {"source": "1A", "target": "4E"}, {"source": "1A", "target": "4F"}, {"source": "1A", "target": "5A"}, {"source": "1A", "target": "5B"}, {"source": "1A", "target": "5C"}, {"source": "1A", "target": "5E"}, {"source": "1A", "target": "6B"}, {"source": "1A", "target": "6E"}, {"source": "1A", "target": "6G"}, {"source": "1A", "target": "6H"}, {"source": "1A", "target": "6I"}, {"source": "1A", "target": "7A"}, {"source": "1A", "target": "7D"}, {"source": "1A", "target": "7E"}, {"source": "1A", "target": "8A"}, {"source": "1A", "target": "8B"}, {"source": "1A", "target": "8C"}, {"source": "1A", "target": "8E"}, {"source": "1A", "target": "8F"}, {"source": "1A", "target": "8G"}, {"source": "1A", "target": "8H"}, {"source": "1A", "target": "8L"}, {"source": "1A", "target": "8M"}, {"source": "1A", "target": "8N"}, {"source": "1A", "target": "8O"}, {"source": "1A", "target": "9A"}, {"source": "1A", "target": "9C"}, {"source": "1B", "target": "1H"}, {"source": "1B", "target": "2I"}, {"source": "1B", "target": "2J"}, {"source": "1B", "target": "2K"}, {"source": "1B", "target": "4D"}, {"source": "1B", "target": "4E"}, {"source": "1B", "target": "4F"}, {"source": "1B", "target": "5A"}, {"source": "1B", "target": "5B"}, {"source": "1B", "target": "5C"}, {"source": "1B", "target": "6B"}, {"source": "1B", "target": "6E"}, {"source": "1B", "target": "6F"}, {"source": "1B", "target": "6G"}, {"source": "1B", "target": "6H"}, {"source": "1B", "target": "6I"}, {"source": "1B", "target": "7A"}, {"source": "1B", "target": "7D"}, {"source": "1B", "target": "7E"}, {"source": "1B", "target": "8H"}, {"source": "1B", "target": "8J"}, {"source": "1B", "target": "8L"}, {"source": "1B", "target": "8M"}, {"source": "1B", "target": "9A"}, {"source": "1B", "target": "9I"}, {"source": "1C", "target": "1D"}, {"source": "1C", "target": "1E"}, {"source": "1C", "target": "1F"}, {"source": "1C", "target": "2A"}, {"source": "1C", "target": "2B"}, {"source": "1C", "target": "2H"}, {"source": "1C", "target": "2K"}, {"source": "1C", "target": "3B"}, {"source": "1C", "target": "3C"}, {"source": "1C", "target": "3D"}, {"source": "1C", "target": "3E"}, {"source": "1C", "target": "4A"}, {"source": "1C", "target": "4B"}, {"source": "1C", "target": "4C"}, {"source": "1C", "target": "4D"}, {"source": "1C", "target": "4E"}, {"source": "1C", "target": "4F"}, {"source": "1C", "target": "5D"}, {"source": "1C", "target": "5E"}, {"source": "1C", "target": "5F"}, {"source": "1C", "target": "6A"}, {"source": "1C", "target": "6B"}, {"source": "1C", "target": "6C"}, {"source": "1C", "target": "6D"}, {"source": "1C", "target": "6G"}, {"source": "1C", "target": "6H"}, {"source": "1C", "target": "7A"}, {"source": "1C", "target": "7B"}, {"source": "1C", "target": "7D"}, {"source": "1C", "target": "8J"}, {"source": "1C", "target": "8K"}, {"source": "1C", "target": "8L"}, {"source": "1C", "target": "9A"}, {"source": "1C", "target": "9B"}, {"source": "1C", "target": "9C"}, {"source": "1C", "target": "9D"}, {"source": "1C", "target": "9E"}, {"source": "1C", "target": "9F"}, {"source": "1C", "target": "9G"}, {"source": "1C", "target": "9I"}, {"source": "1D", "target": "1E"}, {"source": "1D", "target": "1F"}, {"source": "1D", "target": "2A"}, {"source": "1D", "target": "2B"}, {"source": "1D", "target": "2H"}, {"source": "1D", "target": "2K"}, {"source": "1D", "target": "3B"}, {"source": "1D", "target": "3C"}, {"source": "1D", "target": "3D"}, {"source": "1D", "target": "3E"}, {"source": "1D", "target": "4A"}, {"source": "1D", "target": "4B"}, {"source": "1D", "target": "4C"}, {"source": "1D", "target": "4D"}, {"source": "1D", "target": "4E"}, {"source": "1D", "target": "4F"}, {"source": "1D", "target": "5D"}, {"source": "1D", "target": "5E"}, {"source": "1D", "target": "5F"}, {"source": "1D", "target": "6A"}, {"source": "1D", "target": "6B"}, {"source": "1D", "target": "6C"}, {"source": "1D", "target": "6D"}, {"source": "1D", "target": "6G"}, {"source": "1D", "target": "6H"}, {"source": "1D", "target": "7A"}, {"source": "1D", "target": "7B"}, {"source": "1D", "target": "7D"}, {"source": "1D", "target": "8J"}, {"source": "1D", "target": "8K"}, {"source": "1D", "target": "8L"}, {"source": "1D", "target": "9A"}, {"source": "1D", "target": "9B"}, {"source": "1D", "target": "9C"}, {"source": "1D", "target": "9D"}, {"source": "1D", "target": "9E"}, {"source": "1D", "target": "9F"}, {"source": "1D", "target": "9G"}, {"source": "1D", "target": "9I"}, {"source": "1E", "target": "1F"}, {"source": "1E", "target": "2A"}, {"source": "1E", "target": "2B"}, {"source": "1E", "target": "2H"}, {"source": "1E", "target": "2K"}, {"source": "1E", "target": "3B"}, {"source": "1E", "target": "3C"}, {"source": "1E", "target": "3D"}, {"source": "1E", "target": "3E"}, {"source": "1E", "target": "4A"}, {"source": "1E", "target": "4B"}, {"source": "1E", "target": "4C"}, {"source": "1E", "target": "4D"}, {"source": "1E", "target": "4E"}, {"source": "1E", "target": "4F"}, {"source": "1E", "target": "5D"}, {"source": "1E", "target": "5E"}, {"source": "1E", "target": "5F"}, {"source": "1E", "target": "6A"}, {"source": "1E", "target": "6B"}, {"source": "1E", "target": "6C"}, {"source": "1E", "target": "6D"}, {"source": "1E", "target": "6G"}, {"source": "1E", "target": "6H"}, {"source": "1E", "target": "7A"}, {"source": "1E", "target": "7B"}, {"source": "1E", "target": "7D"}, {"source": "1E", "target": "8J"}, {"source": "1E", "target": "8K"}, {"source": "1E", "target": "8L"}, {"source": "1E", "target": "9A"}, {"source": "1E", "target": "9B"}, {"source": "1E", "target": "9C"}, {"source": "1E", "target": "9D"}, {"source": "1E", "target": "9E"}, {"source": "1E", "target": "9F"}, {"source": "1E", "target": "9G"}, {"source": "1E", "target": "9I"}, {"source": "1F", "target": "2A"}, {"source": "1F", "target": "2B"}, {"source": "1F", "target": "2H"}, {"source": "1F", "target": "2K"}, {"source": "1F", "target": "3B"}, {"source": "1F", "target": "3C"}, {"source": "1F", "target": "3D"}, {"source": "1F", "target": "3E"}, {"source": "1F", "target": "4A"}, {"source": "1F", "target": "4B"}, {"source": "1F", "target": "4C"}, {"source": "1F", "target": "4D"}, {"source": "1F", "target": "4E"}, {"source": "1F", "target": "4F"}, {"source": "1F", "target": "5D"}, {"source": "1F", "target": "5E"}, {"source": "1F", "target": "5F"}, {"source": "1F", "target": "6A"}, {"source": "1F", "target": "6B"}, {"source": "1F", "target": "6C"}, {"source": "1F", "target": "6D"}, {"source": "1F", "target": "6G"}, {"source": "1F", "target": "6H"}, {"source": "1F", "target": "7A"}, {"source": "1F", "target": "7B"}, {"source": "1F", "target": "7D"}, {"source": "1F", "target": "8J"}, {"source": "1F", "target": "8K"}, {"source": "1F", "target": "8L"}, {"source": "1F", "target": "9A"}, {"source": "1F", "target": "9B"}, {"source": "1F", "target": "9C"}, {"source": "1F", "target": "9D"}, {"source": "1F", "target": "9E"}, {"source": "1F", "target": "9F"}, {"source": "1F", "target": "9G"}, {"source": "1F", "target": "9I"}, {"source": "1G", "target": "2A"}, {"source": "1G", "target": "2D"}, {"source": "1G", "target": "2F"}, {"source": "1G", "target": "2G"}, {"source": "1G", "target": "3F"}, {"source": "1G", "target": "6I"}, {"source": "1G", "target": "8B"}, {"source": "1G", "target": "8C"}, {"source": "1G", "target": "8D"}, {"source": "1G", "target": "8I"}, {"source": "1H", "target": "1H"}, {"source": "1H", "target": "2I"}, {"source": "1H", "target": "2J"}, {"source": "1H", "target": "2K"}, {"source": "1H", "target": "4D"}, {"source": "1H", "target": "4E"}, {"source": "1H", "target": "4F"}, {"source": "1H", "target": "5A"}, {"source": "1H", "target": "5B"}, {"source": "1H", "target": "5C"}, {"source": "1H", "target": "6B"}, {"source": "1H", "target": "6E"}, {"source": "1H", "target": "6F"}, {"source": "1H", "target": "6G"}, {"source": "1H", "target": "6H"}, {"source": "1H", "target": "6I"}, {"source": "1H", "target": "7A"}, {"source": "1H", "target": "7D"}, {"source": "1H", "target": "7E"}, {"source": "1H", "target": "8H"}, {"source": "1H", "target": "8J"}, {"source": "1H", "target": "8L"}, {"source": "1H", "target": "8M"}, {"source": "1H", "target": "9A"}, {"source": "1H", "target": "9I"}, {"source": "2A", "target": "2B"}, {"source": "2A", "target": "2C"}, {"source": "2A", "target": "2E"}, {"source": "2A", "target": "2G"}, {"source": "2A", "target": "2H"}, {"source": "2A", "target": "2I"}, {"source": "2A", "target": "2J"}, {"source": "2A", "target": "2K"}, {"source": "2A", "target": "3F"}, {"source": "2A", "target": "4F"}, {"source": "2A", "target": "5B"}, {"source": "2A", "target": "5C"}, {"source": "2A", "target": "5E"}, {"source": "2A", "target": "6B"}, {"source": "2A", "target": "6C"}, {"source": "2A", "target": "6D"}, {"source": "2A", "target": "6E"}, {"source": "2A", "target": "6F"}, {"source": "2A", "target": "6G"}, {"source": "2A", "target": "7D"}, {"source": "2A", "target": "7E"}, {"source": "2A", "target": "8A"}, {"source": "2A", "target": "8B"}, {"source": "2A", "target": "8C"}, {"source": "2A", "target": "8D"}, {"source": "2A", "target": "8I"}, {"source": "2B", "target": "2C"}, {"source": "2B", "target": "2D"}, {"source": "2B", "target": "2G"}, {"source": "2B", "target": "2H"}, {"source": "2B", "target": "2I"}, {"source": "2B", "target": "2J"}, {"source": "2B", "target": "2K"}, {"source": "2B", "target": "4F"}, {"source": "2B", "target": "5B"}, {"source": "2B", "target": "5C"}, {"source": "2B", "target": "5E"}, {"source": "2B", "target": "6B"}, {"source": "2B", "target": "6C"}, {"source": "2B", "target": "6D"}, {"source": "2B", "target": "6E"}, {"source": "2B", "target": "6F"}, {"source": "2B", "target": "6G"}, {"source": "2B", "target": "6H"}, {"source": "2B", "target": "8A"}, {"source": "2B", "target": "8L"}, {"source": "2C", "target": "2D"}, {"source": "2C", "target": "2E"}, {"source": "2C", "target": "2F"}, {"source": "2C", "target": "2G"}, {"source": "2C", "target": "2H"}, {"source": "2C", "target": "2I"}, {"source": "2C", "target": "2J"}, {"source": "2C", "target": "2K"}, {"source": "2C", "target": "3F"}, {"source": "2C", "target": "4A"}, {"source": "2C", "target": "4E"}, {"source": "2C", "target": "4F"}, {"source": "2C", "target": "4G"}, {"source": "2C", "target": "4I"}, {"source": "2C", "target": "7A"}, {"source": "2C", "target": "7E"}, {"source": "2C", "target": "8B"}, {"source": "2C", "target": "8E"}, {"source": "2C", "target": "8I"}, {"source": "2D", "target": "2G"}, {"source": "2D", "target": "2H"}, {"source": "2D", "target": "2I"}, {"source": "2D", "target": "2J"}, {"source": "2D", "target": "2K"}, {"source": "2D", "target": "3F"}, {"source": "2D", "target": "5A"}, {"source": "2D", "target": "6E"}, {"source": "2D", "target": "6F"}, {"source": "2D", "target": "6G"}, {"source": "2D", "target": "6H"}, {"source": "2D", "target": "6I"}, {"source": "2D", "target": "7D"}, {"source": "2D", "target": "8E"}, {"source": "2D", "target": "8I"}, {"source": "2E", "target": "2F"}, {"source": "2E", "target": "2G"}, {"source": "2E", "target": "2H"}, {"source": "2E", "target": "2I"}, {"source": "2E", "target": "2J"}, {"source": "2E", "target": "2K"}, {"source": "2E", "target": "3F"}, {"source": "2E", "target": "3G"}, {"source": "2E", "target": "4C"}, {"source": "2E", "target": "4D"}, {"source": "2E", "target": "4E"}, {"source": "2E", "target": "8C"}, {"source": "2E", "target": "8D"}, {"source": "2E", "target": "8F"}, {"source": "2E", "target": "8I"}, {"source": "2E", "target": "8J"}, {"source": "2F", "target": "2G"}, {"source": "2F", "target": "2H"}, {"source": "2F", "target": "2I"}, {"source": "2F", "target": "2J"}, {"source": "2F", "target": "2K"}, {"source": "2F", "target": "3F"}, {"source": "2F", "target": "3G"}, {"source": "2F", "target": "4C"}, {"source": "2F", "target": "4D"}, {"source": "2F", "target": "4E"}, {"source": "2F", "target": "8C"}, {"source": "2F", "target": "8D"}, {"source": "2F", "target": "8F"}, {"source": "2F", "target": "8I"}, {"source": "2F", "target": "8J"}, {"source": "2G", "target": "2I"}, {"source": "2G", "target": "2J"}, {"source": "2G", "target": "2K"}, {"source": "2G", "target": "3F"}, {"source": "2G", "target": "4F"}, {"source": "2G", "target": "5C"}, {"source": "2G", "target": "6I"}, {"source": "2G", "target": "7D"}, {"source": "2G", "target": "8B"}, {"source": "2G", "target": "8C"}, {"source": "2G", "target": "8D"}, {"source": "2H", "target": "2I"}, {"source": "2H", "target": "2J"}, {"source": "2H", "target": "2K"}, {"source": "2H", "target": "3F"}, {"source": "2H", "target": "4E"}, {"source": "2H", "target": "5A"}, {"source": "2H", "target": "5B"}, {"source": "2H", "target": "6E"}, {"source": "2H", "target": "6F"}, {"source": "2H", "target": "6G"}, {"source": "2H", "target": "6H"}, {"source": "2H", "target": "8G"}, {"source": "2H", "target": "8H"}, {"source": "2I", "target": "2J"}, {"source": "2I", "target": "2K"}, {"source": "2I", "target": "3B"}, {"source": "2I", "target": "4B"}, {"source": "2I", "target": "4C"}, {"source": "2I", "target": "4D"}, {"source": "2I", "target": "4E"}, {"source": "2I", "target": "6E"}, {"source": "2I", "target": "6F"}, {"source": "2I", "target": "6I"}, {"source": "2I", "target": "7A"}, {"source": "2I", "target": "8A"}, {"source": "2I", "target": "8B"}, {"source": "2I", "target": "8D"}, {"source": "2I", "target": "8H"}, {"source": "2I", "target": "9H"}, {"source": "2J", "target": "2K"}, {"source": "2J", "target": "3B"}, {"source": "2J", "target": "3F"}, {"source": "2J", "target": "3G"}, {"source": "2J", "target": "4D"}, {"source": "2J", "target": "4E"}, {"source": "2J", "target": "5A"}, {"source": "2J", "target": "5B"}, {"source": "2J", "target": "5C"}, {"source": "2J", "target": "5E"}, {"source": "2J", "target": "6G"}, {"source": "2J", "target": "6H"}, {"source": "2J", "target": "8A"}, {"source": "2J", "target": "8B"}, {"source": "2J", "target": "8C"}, {"source": "2J", "target": "8D"}, {"source": "2J", "target": "8F"}, {"source": "2J", "target": "8G"}, {"source": "2J", "target": "8H"}, {"source": "2J", "target": "8I"}, {"source": "2J", "target": "8J"}, {"source": "2J", "target": "9A"}, {"source": "2J", "target": "9H"}, {"source": "2K", "target": "3B"}, {"source": "2K", "target": "3F"}, {"source": "2K", "target": "3G"}, {"source": "2K", "target": "4C"}, {"source": "2K", "target": "4D"}, {"source": "2K", "target": "4E"}, {"source": "2K", "target": "5A"}, {"source": "2K", "target": "5B"}, {"source": "2K", "target": "5C"}, {"source": "2K", "target": "5E"}, {"source": "2K", "target": "6C"}, {"source": "2K", "target": "6G"}, {"source": "2K", "target": "6H"}, {"source": "2K", "target": "8A"}, {"source": "2K", "target": "8B"}, {"source": "2K", "target": "8C"}, {"source": "2K", "target": "8D"}, {"source": "2K", "target": "8F"}, {"source": "2K", "target": "8G"}, {"source": "2K", "target": "8H"}, {"source": "2K", "target": "8I"}, {"source": "2K", "target": "8J"}, {"source": "2K", "target": "8K"}, {"source": "2K", "target": "9A"}, {"source": "2K", "target": "9H"}, {"source": "3A", "target": "3B"}, {"source": "3A", "target": "3C"}, {"source": "3A", "target": "3E"}, {"source": "3A", "target": "3F"}, {"source": "3A", "target": "3G"}, {"source": "3A", "target": "4C"}, {"source": "3A", "target": "4D"}, {"source": "3A", "target": "7D"}, {"source": "3A", "target": "8K"}, {"source": "3A", "target": "9A"}, {"source": "3A", "target": "9H"}, {"source": "3B", "target": "3C"}, {"source": "3B", "target": "3D"}, {"source": "3B", "target": "3E"}, {"source": "3B", "target": "3F"}, {"source": "3B", "target": "3G"}, {"source": "3B", "target": "4A"}, {"source": "3B", "target": "4B"}, {"source": "3B", "target": "4C"}, {"source": "3B", "target": "4D"}, {"source": "3B", "target": "4E"}, {"source": "3B", "target": "4F"}, {"source": "3B", "target": "5F"}, {"source": "3B", "target": "6B"}, {"source": "3B", "target": "6C"}, {"source": "3B", "target": "6D"}, {"source": "3B", "target": "6E"}, {"source": "3B", "target": "6F"}, {"source": "3B", "target": "6G"}, {"source": "3B", "target": "6H"}, {"source": "3B", "target": "6I"}, {"source": "3B", "target": "7C"}, {"source": "3B", "target": "7D"}, {"source": "3B", "target": "8K"}, {"source": "3B", "target": "9B"}, {"source": "3B", "target": "9C"}, {"source": "3B", "target": "9F"}, {"source": "3B", "target": "9H"}, {"source": "3B", "target": "9I"}, {"source": "3C", "target": "3D"}, {"source": "3C", "target": "3E"}, {"source": "3C", "target": "3F"}, {"source": "3C", "target": "3G"}, {"source": "3C", "target": "4B"}, {"source": "3C", "target": "4F"}, {"source": "3C", "target": "6B"}, {"source": "3C", "target": "6C"}, {"source": "3C", "target": "6D"}, {"source": "3C", "target": "6E"}, {"source": "3C", "target": "6H"}, {"source": "3C", "target": "7D"}, {"source": "3C", "target": "8K"}, {"source": "3C", "target": "8L"}, {"source": "3C", "target": "9C"}, {"source": "3C", "target": "9F"}, {"source": "3C", "target": "9G"}, {"source": "3C", "target": "9I"}, {"source": "3D", "target": "3E"}, {"source": "3D", "target": "4A"}, {"source": "3D", "target": "4C"}, {"source": "3D", "target": "4D"}, {"source": "3D", "target": "4E"}, {"source": "3D", "target": "4F"}, {"source": "3D", "target": "6A"}, {"source": "3D", "target": "6B"}, {"source": "3D", "target": "6C"}, {"source": "3D", "target": "6D"}, {"source": "3D", "target": "6E"}, {"source": "3D", "target": "6F"}, {"source": "3D", "target": "6G"}, {"source": "3D", "target": "6H"}, {"source": "3D", "target": "8K"}, {"source": "3D", "target": "9B"}, {"source": "3D", "target": "9C"}, {"source": "3D", "target": "9F"}, {"source": "3E", "target": "4C"}, {"source": "3E", "target": "4D"}, {"source": "3E", "target": "4E"}, {"source": "3E", "target": "4F"}, {"source": "3E", "target": "7C"}, {"source": "3F", "target": "3G"}, {"source": "3F", "target": "4B"}, {"source": "3F", "target": "4C"}, {"source": "3F", "target": "4D"}, {"source": "3F", "target": "4E"}, {"source": "3F", "target": "4F"}, {"source": "3F", "target": "6C"}, {"source": "3F", "target": "6D"}, {"source": "3F", "target": "6E"}, {"source": "3F", "target": "6F"}, {"source": "3F", "target": "6G"}, {"source": "3F", "target": "7B"}, {"source": "3F", "target": "7D"}, {"source": "3F", "target": "9H"}, {"source": "3G", "target": "4C"}, {"source": "3G", "target": "4D"}, {"source": "3G", "target": "4E"}, {"source": "4A", "target": "4B"}, {"source": "4A", "target": "4C"}, {"source": "4A", "target": "4D"}, {"source": "4A", "target": "4E"}, {"source": "4A", "target": "5F"}, {"source": "4A", "target": "6B"}, {"source": "4A", "target": "6C"}, {"source": "4A", "target": "6E"}, {"source": "4A", "target": "6F"}, {"source": "4A", "target": "6G"}, {"source": "4A", "target": "6H"}, {"source": "4A", "target": "9G"}, {"source": "4A", "target": "9I"}, {"source": "4B", "target": "4C"}, {"source": "4B", "target": "4D"}, {"source": "4B", "target": "4E"}, {"source": "4B", "target": "5F"}, {"source": "4B", "target": "6B"}, {"source": "4B", "target": "6C"}, {"source": "4B", "target": "6D"}, {"source": "4B", "target": "6E"}, {"source": "4B", "target": "6F"}, {"source": "4B", "target": "6G"}, {"source": "4B", "target": "6H"}, {"source": "4B", "target": "9G"}, {"source": "4B", "target": "9I"}, {"source": "4C", "target": "4D"}, {"source": "4C", "target": "4E"}, {"source": "4C", "target": "4F"}, {"source": "4C", "target": "6B"}, {"source": "4C", "target": "6D"}, {"source": "4C", "target": "6E"}, {"source": "4C", "target": "6H"}, {"source": "4C", "target": "9A"}, {"source": "4C", "target": "9C"}, {"source": "4C", "target": "9D"}, {"source": "4C", "target": "9E"}, {"source": "4C", "target": "9F"}, {"source": "4C", "target": "9G"}, {"source": "4C", "target": "9H"}, {"source": "4C", "target": "9I"}, {"source": "4D", "target": "4E"}, {"source": "4D", "target": "4F"}, {"source": "4D", "target": "6B"}, {"source": "4D", "target": "6D"}, {"source": "4D", "target": "6E"}, {"source": "4D", "target": "6H"}, {"source": "4D", "target": "8D"}, {"source": "4D", "target": "8F"}, {"source": "4D", "target": "8J"}, {"source": "4D", "target": "8K"}, {"source": "4D", "target": "9A"}, {"source": "4D", "target": "9C"}, {"source": "4D", "target": "9D"}, {"source": "4D", "target": "9E"}, {"source": "4D", "target": "9F"}, {"source": "4D", "target": "9G"}, {"source": "4D", "target": "9H"}, {"source": "4D", "target": "9I"}, {"source": "4E", "target": "4E"}, {"source": "4E", "target": "4F"}, {"source": "4E", "target": "6B"}, {"source": "4E", "target": "6D"}, {"source": "4E", "target": "6E"}, {"source": "4E", "target": "6H"}, {"source": "4E", "target": "8C"}, {"source": "4E", "target": "8D"}, {"source": "4E", "target": "8F"}, {"source": "4E", "target": "8J"}, {"source": "4E", "target": "8K"}, {"source": "4E", "target": "9A"}, {"source": "4E", "target": "9C"}, {"source": "4E", "target": "9D"}, {"source": "4E", "target": "9E"}, {"source": "4E", "target": "9F"}, {"source": "4E", "target": "9G"}, {"source": "4E", "target": "9H"}, {"source": "4E", "target": "9I"}, {"source": "4F", "target": "5C"}, {"source": "5A", "target": "5D"}, {"source": "5A", "target": "5E"}, {"source": "5A", "target": "6E"}, {"source": "5A", "target": "6F"}, {"source": "5A", "target": "6G"}, {"source": "5A", "target": "6H"}, {"source": "5A", "target": "6I"}, {"source": "5A", "target": "7F"}, {"source": "5A", "target": "7G"}, {"source": "5A", "target": "8N"}, {"source": "5B", "target": "5D"}, {"source": "5B", "target": "5E"}, {"source": "5B", "target": "5F"}, {"source": "5B", "target": "6E"}, {"source": "5B", "target": "6F"}, {"source": "5B", "target": "6G"}, {"source": "5B", "target": "6I"}, {"source": "5C", "target": "5D"}, {"source": "5C", "target": "5E"}, {"source": "5C", "target": "5F"}, {"source": "5D", "target": "5E"}, {"source": "5D", "target": "5F"}, {"source": "5D", "target": "6H"}, {"source": "5D", "target": "7F"}, {"source": "5D", "target": "7G"}, {"source": "5D", "target": "8N"}, {"source": "5E", "target": "5E"}, {"source": "5E", "target": "5F"}, {"source": "5E", "target": "6H"}, {"source": "5E", "target": "7F"}, {"source": "5E", "target": "7G"}, {"source": "5E", "target": "8N"}, {"source": "5F", "target": "6E"}, {"source": "5F", "target": "6F"}, {"source": "5F", "target": "6G"}, {"source": "5F", "target": "6H"}, {"source": "5F", "target": "7G"}, {"source": "6A", "target": "6B"}, {"source": "6A", "target": "6C"}, {"source": "6A", "target": "6D"}, {"source": "6A", "target": "6E"}, {"source": "6A", "target": "6F"}, {"source": "6A", "target": "6G"}, {"source": "6A", "target": "6H"}, {"source": "6A", "target": "6I"}, {"source": "6B", "target": "6C"}, {"source": "6B", "target": "6D"}, {"source": "6B", "target": "6E"}, {"source": "6B", "target": "6F"}, {"source": "6B", "target": "6G"}, {"source": "6B", "target": "6H"}, {"source": "6B", "target": "6I"}, {"source": "6C", "target": "6E"}, {"source": "6C", "target": "6F"}, {"source": "6C", "target": "6G"}, {"source": "6C", "target": "6H"}, {"source": "6C", "target": "6I"}, {"source": "6C", "target": "8K"}, {"source": "6D", "target": "6E"}, {"source": "6D", "target": "6F"}, {"source": "6D", "target": "6G"}, {"source": "6D", "target": "6H"}, {"source": "6D", "target": "6I"}, {"source": "6E", "target": "6F"}, {"source": "6E", "target": "6G"}, {"source": "6E", "target": "6H"}, {"source": "6E", "target": "6I"}, {"source": "6F", "target": "6G"}, {"source": "6F", "target": "6H"}, {"source": "6F", "target": "6I"}, {"source": "6G", "target": "6H"}, {"source": "6G", "target": "6I"}, {"source": "6H", "target": "6I"}, {"source": "7A", "target": "7B"}, {"source": "7A", "target": "7D"}, {"source": "7A", "target": "7E"}, {"source": "7A", "target": "7G"}, {"source": "7B", "target": "7D"}, {"source": "7B", "target": "7E"}, {"source": "7C", "target": "7D"}, {"source": "7C", "target": "7E"}, {"source": "7C", "target": "7F"}, {"source": "7C", "target": "7G"}, {"source": "7D", "target": "7F"}, {"source": "7E", "target": "7F"}, {"source": "7E", "target": "7G"}, {"source": "7F", "target": "7G"}, {"source": "8A", "target": "8B"}, {"source": "8A", "target": "8C"}, {"source": "8A", "target": "8E"}, {"source": "8A", "target": "8G"}, {"source": "8A", "target": "8H"}, {"source": "8B", "target": "8C"}, {"source": "8B", "target": "8D"}, {"source": "8B", "target": "8E"}, {"source": "8B", "target": "8G"}, {"source": "8B", "target": "8H"}, {"source": "8B", "target": "8I"}, {"source": "8B", "target": "8J"}, {"source": "8B", "target": "8N"}, {"source": "8C", "target": "8D"}, {"source": "8C", "target": "8E"}, {"source": "8C", "target": "8F"}, {"source": "8C", "target": "8G"}, {"source": "8C", "target": "8H"}, {"source": "8C", "target": "8I"}, {"source": "8C", "target": "9A"}, {"source": "8C", "target": "9D"}, {"source": "8C", "target": "9G"}, {"source": "8D", "target": "8E"}, {"source": "8D", "target": "8F"}, {"source": "8D", "target": "8G"}, {"source": "8D", "target": "8H"}, {"source": "8D", "target": "9A"}, {"source": "8D", "target": "9G"}, {"source": "8D", "target": "9H"}, {"source": "8E", "target": "8G"}, {"source": "8E", "target": "8H"}, {"source": "8E", "target": "8I"}, {"source": "8E", "target": "8J"}, {"source": "8E", "target": "8N"}, {"source": "8F", "target": "8G"}, {"source": "8F", "target": "8H"}, {"source": "8F", "target": "8I"}, {"source": "8F", "target": "9G"}, {"source": "8F", "target": "9H"}, {"source": "8G", "target": "8H"}, {"source": "8I", "target": "8J"}, {"source": "8J", "target": "8K"}, {"source": "8L", "target": "8M"}, {"source": "8M", "target": "8N"}, {"source": "8M", "target": "8O"}, {"source": "8M", "target": "9A"}, {"source": "8M", "target": "9G"}, {"source": "8N", "target": "8O"}, {"source": "8O", "target": "8O"}, {"source": "8O", "target": "9A"}, {"source": "8O", "target": "9G"}, {"source": "9A", "target": "9B"}, {"source": "9A", "target": "9C"}, {"source": "9A", "target": "9D"}, {"source": "9A", "target": "9G"}, {"source": "9A", "target": "9I"}, {"source": "9B", "target": "9C"}, {"source": "9B", "target": "9D"}, {"source": "9B", "target": "9E"}, {"source": "9B", "target": "9F"}, {"source": "9B", "target": "9G"}, {"source": "9B", "target": "9I"}, {"source": "9C", "target": "9F"}, {"source": "9C", "target": "9G"}, {"source": "9C", "target": "9I"}, {"source": "9D", "target": "9E"}, {"source": "9D", "target": "9G"}, {"source": "9D", "target": "9I"}, {"source": "9E", "target": "9G"}, {"source": "9E", "target": "9I"}, {"source": "9F", "target": "9G"}, {"source": "9F", "target": "9I"}, {"source": "9G", "target": "9H"}, {"source": "9G", "target": "9I"}, {"source": "9H", "target": "9I"}, {"source": "9I", "target": "9I"}]}</script>
+<script>
+const data = JSON.parse(document.getElementById('graph-data').textContent);
+const nodeById = new Map(data.nodes.map(n => [n.id, n]));
+// adjacency
+const adj = new Map();
+data.nodes.forEach(n => adj.set(n.id, new Set()));
+data.links.forEach(l => { adj.get(l.source).add(l.target); adj.get(l.target).add(l.source); });
+
+const svg = d3.select('#viz');
+const width = +svg.attr('width'), height = +svg.attr('height');
+const g = svg.append('g');
+
+// zoom/pan
+const zoom = d3.zoom().scaleExtent([0.4, 2.5]).on('zoom', (e)=> g.attr('transform', e.transform));
+svg.call(zoom);
+
+// elements
+let link = g.append('g').attr('class','links')
+  .attr('stroke-linecap','round')
+  .selectAll('line')
+  .data(data.links)
+  .enter().append('line')
+  .attr('class','link');
+
+const node = g.selectAll('.node')
+  .data(data.nodes, d => d.id)
+  .enter()
+  .append('g')
+  .attr('class', 'node')
+  .call(d3.drag()
+    .on('start', (e,d) => { if (layoutMode==='proximity' && !e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+    .on('drag', (e,d) => { d.fx = e.x; d.fy = e.y; })
+    .on('end',  (e,d) => { if (layoutMode==='proximity' && !e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+  );
+
+node.append('circle')
+  .attr('class','hoverring')
+  .attr('r', d => Math.max(12, d.r + 3))
+  .attr('fill', 'none')
+  .attr('stroke', '#ff3b30')
+  .attr('stroke-width', 2)
+  .attr('opacity', 0);
+
+node.append('circle')
+  .attr('class','core')
+  .attr('r', d => d.r)
+  .attr('fill', d => d.color)
+  .attr('stroke', '#0b1020')
+  .attr('stroke-width', 1.5);
+
+node.append('text')
+  .attr('class','label')
+  .attr('text-anchor','middle')
+  .attr('dy', 3.5)
+  .text(d => d.id);
+
+// hover & click
+node.on('mouseenter', (e,d)=> highlight(d.id))
+    .on('mouseleave', clearHighlight)
+    .on('click', (e,d)=> showDetails(d.id));
+
+// FORCE (Proximity)
+let spacing = 1.35;
+let layoutMode = 'proximity';
+const simulation = d3.forceSimulation(data.nodes)
+  .force('link', d3.forceLink(data.links).id(d=>d.id).distance(l=>linkDistance(l)).strength(l=>linkStrength(l)))
+  .force('charge', d3.forceManyBody().strength(d => -1 * spacing * (120 + d.r*3)))
+  .force('center', d3.forceCenter(width/2, height/2))
+  .force('collide', d3.forceCollide().radius(d => d.r + 6).iterations(2))
+  .alphaDecay(0.03);
+
+function linkDistance(l){
+  const a = (typeof l.source === 'string') ? nodeById.get(l.source) : l.source;
+  const b = (typeof l.target === 'string') ? nodeById.get(l.target) : l.target;
+  const gap = Math.abs(a.module_num - b.module_num);
+  const base = (gap === 0 ? 70 : 120 + 20*gap);
+  return base * spacing;
+}
+function linkStrength(l){
+  const a = (typeof l.source === 'string') ? nodeById.get(l.source) : l.source;
+  const b = (typeof l.target === 'string') ? nodeById.get(l.target) : l.target;
+  const gap = Math.abs(a.module_num - b.module_num);
+  return (gap === 0 ? 0.9 : 0.25/(0.5 + 0.5*gap));
+}
+
+simulation.on('tick', ()=> {
+  data.nodes.forEach(n => {
+    if (layoutMode==='proximity'){
+      n.x = Math.max(n.r, Math.min(width - n.r, n.x || width/2));
+      n.y = Math.max(n.r, Math.min(height - n.r, n.y || height/2));
+    }
+  });
+  node.attr('transform', d => `translate(${d.x ?? d.rx},${d.y ?? d.ry})`);
+  link
+    .attr('x1', d => (typeof d.source === 'string' ? (nodeById.get(d.source).x ?? nodeById.get(d.source).rx) : (d.source.x ?? d.source.rx)))
+    .attr('y1', d => (typeof d.source === 'string' ? (nodeById.get(d.source).y ?? nodeById.get(d.source).ry) : (d.source.y ?? d.source.ry)))
+    .attr('x2', d => (typeof d.target === 'string' ? (nodeById.get(d.target).x ?? nodeById.get(d.target).rx) : (d.target.x ?? d.target.ry)))
+    .attr('y2', d => (typeof d.target === 'string' ? (nodeById.get(d.target).y ?? nodeById.get(d.target).ry) : (d.target.y ?? d.target.ry)));
+});
+
+// Initialize nodes at ring positions
+data.nodes.forEach(n => { n.x = n.rx; n.y = n.ry; simulation.alpha(0.9).restart(); });
+
+// Spacing slider
+document.getElementById('spacing').addEventListener('input', (e)=> {
+  spacing = parseFloat(e.target.value);
+  simulation.force('charge', d3.forceManyBody().strength(d => -1 * spacing * (120 + d.r*3)))
+            .force('link').distance(l => linkDistance(l));
+  if (layoutMode==='proximity'){ simulation.alpha(0.6).restart(); }
+});
+
+// Link filter: 'revision' means only red links show on hover
+let linkFilter = 'all';
+document.getElementById('linkMode').addEventListener('change', (e)=> {
+  linkFilter = e.target.value;
+  clearHighlight();
+});
+
+function applyBaseLinkVisibility(){
+  if (linkFilter === 'all'){
+    link.classed('hidden', false);
+  } else {
+    link.classed('hidden', true); // hide all by default for revision-only
+  }
+}
+
+// Layout toggle
+document.getElementById('layoutMode').addEventListener('change', (e)=> {
+  layoutMode = e.target.value;
+  if (layoutMode === 'rings'){
+    simulation.stop();
+    data.nodes.forEach(n => { n.x = n.rx; n.y = n.ry; n.fx = null; n.fy = null; });
+    svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+    g.transition().duration(300).tween('pos', ()=> t => {
+      node.attr('transform', d => `translate(${d.rx},${d.ry})`);
+      link
+        .attr('x1', d => (typeof d.source === 'string' ? nodeById.get(d.source).rx : d.source.rx))
+        .attr('y1', d => (typeof d.source === 'string' ? nodeById.get(d.source).ry : d.source.ry))
+        .attr('x2', d => (typeof d.target === 'string' ? nodeById.get(d.target).rx : d.target.rx))
+        .attr('y2', d => (typeof d.target === 'string' ? nodeById.get(d.target).ry : d.target.ry));
+    });
+  } else {
+    simulation.alpha(0.8).restart();
+  }
+});
+
+// Toolbar buttons
+document.getElementById('startBtn').onclick = ()=> { if (layoutMode==='proximity'){ simulation.alpha(0.6).restart(); } };
+document.getElementById('pauseBtn').onclick = ()=> { simulation.stop(); };
+document.getElementById('resetBtn').onclick = ()=> svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity);
+document.getElementById('saveBtn').onclick = ()=> {
+  const out = data.nodes.map(n => ({id:n.id, x:Math.round((n.x ?? n.rx)||0), y:Math.round((n.y ?? n.ry)||0)}));
+  const blob = new Blob([JSON.stringify(out, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'node_positions_combo.json';
+  a.click();
+  URL.revokeObjectURL(url);
+};
+document.getElementById('snapBtn').onclick = ()=> {
+  const grid = 40;
+  data.nodes.forEach(n => {
+    const px = Math.round(((n.x ?? n.rx)) / grid) * grid;
+    const py = Math.round(((n.y ?? n.ry)) / grid) * grid;
+    n.x = px; n.y = py;
+  });
+  // stop sim to make it "stick" visually
+  simulation.stop();
+  node.attr('transform', d => `translate(${d.x ?? d.rx},${d.y ?? d.ry})`);
+  link
+    .attr('x1', d => (typeof d.source === 'string' ? (nodeById.get(d.source).x ?? nodeById.get(d.source).rx) : (d.source.x ?? d.source.rx)))
+    .attr('y1', d => (typeof d.source === 'string' ? (nodeById.get(d.source).y ?? nodeById.get(d.source).ry) : (d.source.y ?? d.source.ry)))
+    .attr('x2', d => (typeof d.target === 'string' ? (nodeById.get(d.target).x ?? nodeById.get(d.target).rx) : (d.target.x ?? d.target.rx)))
+    .attr('y2', d => (typeof d.target === 'string' ? (nodeById.get(d.target).y ?? nodeById.get(d.target).ry) : (d.target.y ?? d.target.ry)));
+};
+
+// Highlight
+function highlight(id){
+  const n = nodeById.get(id);
+  const neighbors = adj.get(id) || new Set();
+  node.classed('dim', d => !(d.id===id || neighbors.has(d.id)));
+  link.classed('dim', true).classed('highlight', false).classed('forward', false).classed('backward', false);
+  node.select('.hoverring').attr('opacity', d => d.id===id ? 1 : 0);
+
+  applyBaseLinkVisibility();
+
+  // Show incident edges for hovered node; if revision-only, only earlier module edges
+  link.filter(l => {
+        const srcId = (typeof l.source === 'string') ? l.source : l.source.id;
+        const tgtId = (typeof l.target === 'string') ? l.target : l.target.id;
+        return (srcId===id || tgtId===id);
+      })
+      .classed('hidden', false)
+      .classed('dim', false)
+      .classed('highlight', true)
+      .each(function(l){
+        const src = (typeof l.source === 'string') ? nodeById.get(l.source) : l.source;
+        const tgt = (typeof l.target === 'string') ? nodeById.get(l.target) : l.target;
+        const other = (src.id===id) ? tgt : src;
+        const isBackward = other.module_num < n.module_num;
+        const isForward = other.module_num > n.module_num;
+        if (linkFilter === 'revision'){
+          d3.select(this).classed('hidden', !isBackward);
+          if (isBackward) d3.select(this).classed('backward', true);
+        } else {
+          if (isBackward) d3.select(this).classed('backward', true);
+          if (isForward) d3.select(this).classed('forward', true);
+        }
+      });
+
+  showDetails(id);
+}
+
+function clearHighlight(){
+  node.classed('dim', false);
+  link.classed('dim', false).classed('highlight', false).classed('forward', false).classed('backward', false);
+  applyBaseLinkVisibility();
+  node.select('.hoverring').attr('opacity', 0);
+}
+
+// Details panel
+function showDetails(id){
+  const n = nodeById.get(id);
+  const neighborIds = Array.from(adj.get(id) || []);
+  const revision = [], builds = [], same = [];
+  neighborIds.forEach(nn => {
+    const m2 = nodeById.get(nn).module_num;
+    if (m2 < n.module_num) revision.push(nn);
+    else if (m2 > n.module_num) builds.push(nn);
+    else same.push(nn);
+  });
+  const fmt = arr => arr.length ? arr.join(', ') : 'None';
+
+  const el = document.getElementById('details');
+  el.innerHTML = `
+    <div class="badge">Module ${n.module_num}: ${n.module_title}</div>
+    <h2>${n.id}</h2>
+    <p>${n.description}</p>
+    <div class="list-head">Revision modules (earlier):</div>
+    <div class="list">${fmt(revision)}</div>
+    <div class="list-head">Builds into (later):</div>
+    <div class="list">${fmt(builds)}</div>
+    <div class="list-head">Connected (same module):</div>
+    <div class="list">${fmt(same)}</div>
+  `;
+}
+
+// Legend
+const legend = d3.select('#globalLegend');
+const byModule = Array.from(new Set(data.nodes.map(d=>d.module_num))).sort((a,b)=>a-b);
+byModule.forEach(m => {
+  const row = legend.append('div').attr('class','legend-row');
+  const color = data.nodes.find(d=>d.module_num===m).color;
+  row.append('div').attr('class','swatch').style('background', color);
+  row.append('div').attr('class','small').text(`Module ${m}`);
+});
+
+applyBaseLinkVisibility();
+</script>
+</body>
+</html>
