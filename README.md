@@ -1,2 +1,2 @@
 # Scaffolding-Map
-#Git-Repo for creating version  sof the scaffolding map
+#Git-Repo for creating versions of the scaffolding map
